@@ -1,4 +1,5 @@
-import threading
+# import threading
+import multiprocessing as mp
 import cv2
 import time
 import torch
@@ -7,27 +8,20 @@ import os
 import onnxruntime as ort
 import numpy as np
 
-from utils.video_processing_utils import load_transforms, smoothen_predictions, load_model_and_tranforms
-from crash_summary import create_report
+from utils.video_processing_utils import load_transforms, smoothen_predictions
 
 # Creating a thread so the video continuisly runs in the background of the site
-class VideoProcessingThread(threading.Thread): 
-    def __init__(self, video_path, report_queue, max_gap_size = 5): 
+class VideoProcessingThread(mp.Process): 
+    def __init__(self, video_path, frame_queue, report_queue, stop_event, max_gap_size = 5): 
         super().__init__()
         self.video_path = video_path
         self.max_gap_size = max_gap_size
 
-        self.stop_event = threading.Event()
-        # locking the thread so this and the main thread don't access the frame at the same time
-        # which will corrupt the video file in the worst case
-        self.lock = threading.Lock() 
+        self.stop_event = mp.Event()
+
+        self.frame_queue = frame_queue
         self.report_queue = report_queue
-
-        # The frame that will be passed from this thread to the website 
-        self.output_frame = None
-
-        # FOR REGULAR MODEL WEIGHTS
-        self.model_weights_path = "model_weights.pth"
+        self.stop_event = stop_event
         
         # FOR ONNX
         #getting the model and the transforms for the input
@@ -35,25 +29,18 @@ class VideoProcessingThread(threading.Thread):
         self.ort_session = ort.InferenceSession("model.onnx")
         self.input_name = self.ort_session.get_inputs()[0].name
 
-
-
+        self.status = mp.Value("i", 1) # 1 is running, 0 is paused
     
     def run(self): # main video loop that parses the frames in the background
-
         cap = cv2.VideoCapture(self.video_path) # the video frame
-
         if not cap.isOpened(): 
             print("Can't open the video file")
+            self.status.value = 0 
             return
     
-        video_fps = cap.get(cv2.CAP_PROP_FPS) 
-        print(video_fps)
-        if video_fps == 0: 
-            video_fps = 60 #sometimes opencv can't detect the fps of the video
+        video_fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        frame_interval = 1 #max(1, int(round(video_fps/ 10))) # to reduce compute, processing every 10th frame
 
-        frame_interval = max(1, int(round(video_fps/ 10))) # to reduce compute, processing every 10th frame
-
-        model, transform, device = load_model_and_tranforms(self.model_weights_path)
         # Different State variables 
         raw_predictions = [] 
         smoothed_predictions = [] # applying smoothen_predictions from the utils 
@@ -88,17 +75,6 @@ class VideoProcessingThread(threading.Thread):
                 frame_buffer.append(frame)
 
                 if is_sampled_frame: 
-                    
-                    # FOR MODEL WEIGHTS
-                    # image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    # image_tensor = transform(image).unsqueeze(0).to(device)
-
-                    # with torch.no_grad():
-                    #     output = model(image_tensor)
-                    #     _, pred = torch.max(output, 1)
-                    #     raw_predictions.append(pred.item())
-            
-
                     # FOR ONNX
                     image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) #get frame in image format as RGB
 
@@ -221,29 +197,25 @@ class VideoProcessingThread(threading.Thread):
                                 font_thickness, 
                                 cv2.LINE_AA)
 
+                    ########################
+                    # ADDING JPGS TO FRAME QUEUE #
+                    ########################
+                    _, encoded_image = cv2.imencode(".jpg", display_frame_bgr)
+                    frame_bytes = bytearray(encoded_image)
 
-                    with self.lock:
-                        self.output_frame = display_frame_bgr.copy()
+                    #Frame Queue has a set limit
+                    try: 
+                        self.frame_queue.put_nowait(frame_bytes)
+
+                    except:
+                        time.sleep(0.01) 
+                        continue
 
                 frame_idx += 1
-                time.sleep(1.0 / (video_fps) - 0.015) #removing 0.1 to take in account for the processing of the frame
-                # print(f"frame {frame_idx} processed")
                 
         finally: 
             cap.release()
-
-    # returns latest frame processed to the website
-    def get_frame(self): 
-        with self.lock: 
-            if self.output_frame is None: 
-                return None
-            
-            (flag, encodedImage) = cv2.imencode(".jpg", self.output_frame)
-            if not flag: 
-                print("flag is None")
-                return None
-            
-            return bytearray(encodedImage)
+            self.status.value = 0
     
     def stop(self): #stops the thread
         self.stop_event.set() 

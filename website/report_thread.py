@@ -1,21 +1,20 @@
-import threading
+import multiprocessing as mp
 import os 
-from flask import url_for
 import time
 
 from crash_summary import create_report
 
-class ReportProcessingThread(threading.Thread): 
-    def __init__(self, report_queue, reports_db, db_lock):
+class ReportProcessingThread(mp.Process): 
+    def __init__(self, report_queue, report_list, db_lock, stop_event):
         super().__init__()
-        self.daemon = True # kills process without letting it finish
 
+        self.report_list = report_list
         self.report_queue = report_queue
-        self.reports_db = reports_db
         self.db_lock = db_lock
+        self.stop_event = stop_event
 
     def run(self):
-        while True: 
+        while not self.stop_event.is_set(): 
             crash_image_paths = self.report_queue.get()
 
             try: 
@@ -31,7 +30,8 @@ class ReportProcessingThread(threading.Thread):
                 }
 
                 with self.db_lock: 
-                    self.reports_db.append(new_report)
+                    print("added new report")
+                    self.report_list.append(new_report)
 
             except Exception as e: 
                 print(f"report processor thread failed : {e}")
