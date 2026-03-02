@@ -1,0 +1,8 @@
+services:
+  manager:
+    build: .
+    volumes:
+      - ./website:/app # This "hot-swaps" your code so changes reflect instantly
+    ports:
+      - "8000:8080" # Access via http://localhost:8000
+    restart: always

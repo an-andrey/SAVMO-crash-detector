@@ -59,7 +59,6 @@ parso==0.8.5
 pexpect==4.9.0
 pickleshare==0.7.5
 pillow==12.0.0
-pipreqs==0.5.0
 platformdirs==4.5.0
 prompt_toolkit==3.0.52
 protobuf==6.33.0
