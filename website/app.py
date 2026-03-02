@@ -154,14 +154,21 @@ def start_thread():
 @app.route('/dashboard')
 def dashboard():
     user_id = get_user_id()
-    reports_list = shared_objects.active_user_processes[user_id]["report list"]
-    print(reports_list)
-    return render_template('dashboard.html', reports=reversed(reports_list))
+    user = shared_objects.active_user_processes[user_id]
+
+    #this avoids issues, since multiprocessing's list is an iterator rather than a list
+    #and makes things slow on the web side
+    local_list = []
+
+    if "report list" in user:
+        local_list = list(user["report list"])
+
+    return render_template('dashboard.html', reports=reversed(local_list))
         
 def stream_frames(user_id): # grabs the latest frame from the video thread
     user = shared_objects.active_user_processes.get(user_id)
     last_frame_time = time.time()
-    frame_interval = 1/30
+    frame_interval = 1/60
 
     if not user:
         return 
@@ -180,6 +187,7 @@ def stream_frames(user_id): # grabs the latest frame from the video thread
             frame = frame_queue.get_nowait()
             yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         except Empty:
+            print("EMPTY QUEUE")
             time.sleep(0.01)
             continue
         except Exception:
@@ -197,6 +205,26 @@ def video_feed():
         stream_frames(user_id),
         mimetype='multipart/x-mixed-replace; boundary=frame'
     )
+##################
+# ERROR HANDLING #
+##################
+@app.errorhandler(404)
+def page_not_found(e):
+    # 404: Not Found
+    return render_template('error.html', error_code=404, error_message="We couldn't find the page you're looking for."), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    # 500: Internal Server Error
+    # Log the error if needed: app.logger.error(f"Server Error: {e}")
+    return render_template('error.html', error_code=500, error_message="Something went wrong on our end. We're fixing it."), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # Generic handler for other exceptions
+    # Pass the error details if you want (be careful with sensitive info in production)
+    return render_template('error.html', error_code=500, error_message="An unexpected error occurred."), 500
+
 
 def pid_exists(pid):
     """Check whether pid exists in the current process table."""
@@ -219,6 +247,9 @@ def pid_exists(pid):
 #Adding global variables to templates
 @app.context_processor
 def add_global_vars(): 
+    report_count = 0 
+    is_feed_live = False
+
     try:
         user_id = get_user_id()
         user_data = shared_objects.active_user_processes.get(user_id)
@@ -226,12 +257,15 @@ def add_global_vars():
         # Check validity using PID
         pid = user_data.get("video_pid") if user_data else None
         is_feed_live = pid_exists(pid)
+        if "report list" in user_data:
+            report_count = len(user_data["report list"])
         
     except Exception:
         is_feed_live = False
 
     return {
-        "is_feed_live": is_feed_live
+        "is_feed_live": is_feed_live,
+        "report_count": report_count
     }
 
 # --- Run the App ---

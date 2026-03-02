@@ -39,7 +39,7 @@ class VideoProcessingThread(mp.Process):
             return
     
         video_fps = cap.get(cv2.CAP_PROP_FPS) or 30
-        frame_interval = 1 #max(1, int(round(video_fps/ 10))) # to reduce compute, processing every 10th frame
+        frame_interval = max(1, int(round(video_fps/ 10))) # to reduce compute, processing every 10th frame
 
         # Different State variables 
         raw_predictions = [] 
@@ -55,8 +55,8 @@ class VideoProcessingThread(mp.Process):
         frame_idx = 0
         display_frame_bgr = None
         current_prediction = None
+        last_prediction_was_crash = False
 
-        
         try: 
             while not self.stop_event.is_set(): 
                 

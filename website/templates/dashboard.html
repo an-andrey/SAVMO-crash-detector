@@ -1,79 +1,249 @@
-{% extends "layout.html" %}
-
-{% block page_styles %}
+{% extends "layout.html" %} {% block page_styles %}
 <style>
-/* This new class will style your report description box */
-.report-description-box {
-  max-height: 400px;  /* You can change this value */
-  overflow-y: auto; /* Adds a scrollbar only when needed */
-  
-  /* These rules give it the "inset" textbook look */
-  background-color: #2b2b2b; /* A slightly different dark shade */
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #444;
-  
-  /* This keeps your line breaks and wrapping */
-  white-space: pre-wrap; 
-}
+  /* Custom Pulse Animation for the Badge */
+  @keyframes pulse-red {
+    0% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+    }
+    70% {
+      transform: scale(1);
+      box-shadow: 0 0 0 6px rgba(220, 53, 69, 0);
+    }
+    100% {
+      transform: scale(0.95);
+      box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+  }
+
+  .live-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #fff;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  .badge-pulse {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35em 0.65em;
+    font-size: 0.75em;
+    font-weight: 700;
+    color: white;
+    background-color: #dc3545;
+    border-radius: 50rem; /* Pill shape */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    /* The magic pulsing animation */
+    animation: pulse-red 2s infinite;
+  }
+
+  /* Report Description Box Styling */
+  .report-description-box {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #16191d; /* Darker background for contrast */
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #2c3035;
+    color: #e0e0e0;
+    font-family: "Consolas", "Monaco", monospace; /* Monospace for technical feel */
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    line-height: 1.6;
+  }
+
+  /* Modern Card tweaks */
+  .report-card {
+    background-color: #1e2126;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .report-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(220, 53, 69, 0.3); /* Subtle red border on hover */
+  }
+
+  /* Carousel Tweaks */
+  .carousel-item img {
+    max-height: 450px;
+    object-fit: contain;
+    background-color: #000;
+  }
 </style>
-{% endblock %}
+{% endblock %} {% block content %} {# Convert the iterator to a list first so we
+can use length #} {% set reports_list = reports | list %}
 
-{% block content %}
-  <h1 class="mb-4">Incoming Reports</h1>
+<div class="d-flex justify-content-between align-items-center mb-5">
+  <h1 class="fw-bold text-white">Incoming Reports</h1>
+  <!-- Added ID for JS targeting -->
+  <span id="report-count" class="badge bg-secondary"
+    >{{ reports_list|length }} Events Logged</span
+  >
+</div>
 
-  {% for report in reports %}
-    
-    {% set report_index = loop.index %}
-    
-    <div class="card text-bg-dark border-secondary mb-4 shadow">
-      <div class="row g-0">
-        
-        <div class="col-md-5">
-          {% if report.images %}
-            
-            <div id="carousel-{{ report_index }}" class="carousel slide" data-bs-ride="carousel">
-              
-              <div class="carousel-indicators">
-                {% for image_url in report.images %}
-                  <button type."button" data-bs-target="#carousel-{{ report_index }}" data-bs-slide-to="{{ loop.index0 }}" class="{% if loop.first %}active{% endif %}" aria-current="true"></button>
-                {% endfor %}
-              </div>
-              
-              <div class="carousel-inner">
-                {% for image_url in report.images %}
-                  <div class="carousel-item {% if loop.first %}active{% endif %}">
-                    <img src="{{ url_for('static', filename='uploads/' + image_url) }}" class="d-block w-100" alt="Report Image">
-                  </div>
-                {% endfor %}
-              </div>
-              
-              <button class="carousel-control-prev" type="button" data-bs-target="#carousel-{{ report_index }}" data-bs-slide="prev">
-                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Previous</span>
-              </button>
-              <button class="carousel-control-next" type="button" data-bs-target="#carousel-{{ report_index }}" data-bs-slide="next">
-                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                <span class="visually-hidden">Next</span>
-              </button>
+<!-- WRAPPER for Auto-Updates -->
+<div id="live-reports-container">
+  {% if reports_list|length == 0 %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-clipboard-check display-1"></i>
+    <p class="mt-3">No crash reports generated yet.</p>
+  </div>
+  {% else %} {% for report in reports_list %} {% set report_index = loop.index
+  %}
+
+  <div class="card report-card mb-5 shadow-sm">
+    <div
+      class="card-header bg-transparent border-bottom border-secondary d-flex justify-content-between align-items-center py-3"
+    >
+      <div class="d-flex align-items-center gap-2">
+        <!-- THE PULSING BADGE -->
+        <span class="badge-pulse">
+          <span class="live-dot"></span> CRITICAL
+        </span>
+        <span class="text-light fw-semibold">Incident #{{ report_index }}</span>
+      </div>
+      <small class="text-muted">Auto-Generated Analysis</small>
+    </div>
+
+    <div class="row g-0">
+      <!-- Image Carousel Column -->
+      <div class="col-lg-6 border-end border-secondary">
+        {% if report.images %}
+        <div
+          id="carousel-{{ report_index }}"
+          class="carousel slide"
+          data-bs-ride="carousel"
+        >
+          <div class="carousel-indicators">
+            {% for image_url in report.images %}
+            <button
+              type="button"
+              data-bs-target="#carousel-{{ report_index }}"
+              data-bs-slide-to="{{ loop.index0 }}"
+              class="{% if loop.first %}active{% endif %}"
+              aria-current="true"
+            ></button>
+            {% endfor %}
+          </div>
+
+          <div class="carousel-inner">
+            {% for image_url in report.images %}
+            <div class="carousel-item {% if loop.first %}active{% endif %}">
+              <img
+                src="{{ url_for('static', filename='uploads/' + image_url) }}"
+                class="d-block w-100"
+                alt="Report Image"
+              />
             </div>
-          {% else %}
-            <div class="d-flex align-items-center justify-content-center h-100 bg-secondary text-light">
-              <p class="m-0">No Images Submitted</p>
-            </div>
-          {% endif %}
+            {% endfor %}
+          </div>
+
+          <button
+            class="carousel-control-prev"
+            type="button"
+            data-bs-target="#carousel-{{ report_index }}"
+            data-bs-slide="prev"
+          >
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+          </button>
+          <button
+            class="carousel-control-next"
+            type="button"
+            data-bs-target="#carousel-{{ report_index }}"
+            data-bs-slide="next"
+          >
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+          </button>
         </div>
-        
-        <div class="col-md-7">
-          <div class="card-body">
-            <h5 class="card-title">Report Description</h5>
-            <div class="report-description-box">
-              {{ report.description | safe }}
-            </div>
+        {% else %}
+        <div
+          class="d-flex flex-column align-items-center justify-content-center h-100 bg-dark text-secondary p-5"
+        >
+          <i class="bi bi-camera-video-off display-4 mb-3"></i>
+          <p class="m-0">No Visual Data Captured</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Description Column -->
+      <div class="col-lg-6">
+        <div class="card-body p-4 h-100 d-flex flex-column">
+          <h5 class="card-title text-white mb-3">
+            <i class="bi bi-file-text me-2 text-danger"></i>Analysis Log
+          </h5>
+
+          <div class="report-description-box flex-grow-1">
+            {{ report.description | safe }}
+          </div>
+
+          <div class="mt-3 text-end">
+            <button class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-download me-1"></i> Export JSON
+            </button>
           </div>
         </div>
-        
       </div>
     </div>
-  {% endfor %}
+  </div>
+  {% endfor %} {% endif %}
+</div>
+<!-- End of Live Container -->
+
+<!-- Auto-Refresh Script -->
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      let currentCount = {{ reports_list|length }};
+      const POLL_INTERVAL = 3000; // Check every 3 seconds
+
+      setInterval(() => {
+          fetch(window.location.href)
+              .then(response => response.text())
+              .then(html => {
+                  // Parse the fetched HTML
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(html, 'text/html');
+
+                  // Get the new count from the fetched page
+                  const newCountBadge = doc.getElementById('report-count');
+                  if (!newCountBadge) return;
+
+                  // Extract number from badge text (e.g. "5 Events Logged" -> 5)
+                  const newCount = parseInt(newCountBadge.innerText);
+
+                  // Only update DOM if we have NEW reports
+                  if (newCount > currentCount) {
+                      console.log(`New reports detected: ${currentCount} -> ${newCount}`);
+
+                      // 1. Update the main container with new cards
+                      const newContainerContent = doc.getElementById('live-reports-container').innerHTML;
+                      document.getElementById('live-reports-container').innerHTML = newContainerContent;
+
+                      // 2. Update the badge count
+                      document.getElementById('report-count').innerText = newCountBadge.innerText;
+
+                      // 3. Update local tracker
+                      currentCount = newCount;
+
+                      // Optional: Visual cue that update happened
+                      const badge = document.getElementById('report-count');
+                      badge.classList.remove('bg-secondary');
+                      badge.classList.add('bg-success');
+                      setTimeout(() => {
+                          badge.classList.remove('bg-success');
+                          badge.classList.add('bg-secondary');
+                      }, 1000);
+                  }
+              })
+              .catch(err => console.error('Auto-refresh error:', err));
+      }, POLL_INTERVAL);
+  });
+</script>
+
 {% endblock %}
