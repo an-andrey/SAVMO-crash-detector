@@ -6,6 +6,10 @@ Initially, SAVMO was built in 24hrs as part of the MAIS HACKS 2025 hackathon, an
 
 The goal of SAVMO is to detect if the driver crashed, based on live dashcam footage. Once a crash is detected, SAVMO will generate a summary of the crash, and transfer it (along with key frames from the crash) to the SAVMO dashboard.
 
+Here is a look of the live detection feed: ![live car crash detection in the SAVMO dashboard](README_images/crash.png)
+
+As well the as dashboard itself: ![dashboard preview of SAVMO](README_images/website.png)
+
 The dashboard is ideally to be used by emergency responders, or could be sent out to close relatives of the owner of the dashcam in order to let them know that a crash occured.
 
 # Replication
