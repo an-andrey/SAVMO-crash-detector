@@ -2,7 +2,7 @@
 
 # Introduction
 
-Initially, SAVMO was built in 24hrs as part of the MAIS HACKS 2025 hackathon, and ended up winning "Best Hack For Impact" category! However, since then major changes were made to make this a proper project.
+Initially, SAVMO was built in 24hrs as part of the MAIS HACKS 2025 hackathon, and ended up winning "Best Hack For Impact" category! However, since then major changes were made to shape it up to a proper project, including: implementing handling concurrent users, a proper UI with a clean dashboard, updating the model by packaging it with ONNX, packaging it as a Docker container to be potentially deployed.
 
 The goal of SAVMO is to detect if the driver crashed, based on live dashcam footage. Once a crash is detected, SAVMO will generate a summary of the crash, and transfer it (along with key frames from the crash) to the SAVMO dashboard.
 
@@ -10,7 +10,7 @@ The dashboard is ideally to be used by emergency responders, or could be sent ou
 
 # Replication
 
-In order to run SAVMO on your own, clone this repo, and download all required libraries using `requirements.txt`.
+If you have Docker, you can simple run `docker compose up` and the project will be available at port 8000 by default, but you can change it to anything in the `docker-compose.yaml`
 
 Here are the main elements of the project:
 
@@ -22,7 +22,7 @@ Here are the main elements of the project:
 
 We fine-tuned the ResNet18 model based on the [Car Crash Dataset](https://www.kaggle.com/datasets/asefjamilajwad/car-crash-dataset-ccd/data). Due to our time constraints, we trained the model on randomized frames, but a future implementation could be to use a sequential model to use context of the entire video.
 
-After fine-tuning, we got the following confusion matrix, when testing on 20% of our 75 thousand images:
+After fine-tuning, we got the following confusion matrix, when testing on 20% of our 75k images:
 
 | Truth / Prediction | No Crash | Crash | Accuracy |
 | :----------------- | :------: | ----: | -------: |
